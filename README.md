@@ -1,5 +1,4 @@
 # Windows-Keylogger
-Certainly, here's an example disclaimer that can be displayed prominently in your repository:
 
 DISCLAIMER:
 
