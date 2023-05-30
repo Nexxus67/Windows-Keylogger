@@ -130,7 +130,6 @@ int main() {
             break;
         }
         
-        // ... Do something with the captured keyboard state ...
         
         // Check if the connection to the server was closed
         int bytes_received = recv(sockfd, NULL, 0, 0);
